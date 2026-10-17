@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang ="de">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wiside</title>
+<style>
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:#1d5c63;color:#fff;font-family:Arial,sans-serif;text-align:center;}
+h1,h2,p{margin:4px 0}
+#wrap{height:100%;display:flex;flex-direction:column}
+#game{flex:1;min-height:0;width:100%;max-width:440px;margin:0 auto;display:flex;flex-direction:column}
+.ad{border:2px dashed #fff8;border-radius:10px;padding:8px;margin:0 12px 8px;font-size:14px}
+#adm{height:44px}
+#ad{display:none}
+@media(min-width:900px){
+#wrap{flex-direction:row}
+#adm{display:none}
+#ad{display:flex;align-items:center;justify-content:center;width:300px;height:600px;align-self:center;margin:0 20px}
+}
+button{font:inherit;font-size:18px;border:0;border-radius:12px;min-height:52px;padding:0 16px;background:#f4c95d;color:#0d2428;cursor:pointer}
+.g{background:none;color:#fff;border:2px solid #fff6}
+.top{display:flex;justify-content:space-between;align-items:center}
+.chip{background:#154149;color:#f4c95d;padding:8px 14px;border-radius:99px}
+.mid{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:14px}
+.big{width:260px;height:90px;font-size:30px}
+input{font:inherit;font-size:18px;width:100%;height:52px;border-radius:12px;border:2px solid #fff6;background:#154149;color:#fff;padding:0 12px}
+.cards{display:flex;justify-content:center;gap:30px;margin:auto 0}
+.card{width:110px;height:140px;border-radius:12px;display:grid;place-items:center;font-size:44px;margin-bottom:6px}
+.r{background:#f25c54}
+.b{background:#3a86ff}
+#disp{background:#154149;border-radius:12px;height:54px;line-height:54px;font-size:28px;margin:0 auto 10px;width:260px}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.k{background:#faf5e6;font-size:20px;height:56px;padding:0}
+#ov{position:fixed;inset:0;background:#0008;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:none;place-items:center}
+#box{background:#154149;border-radius:18px;padding:22px;width:300px;display:flex;flex-direction:column;gap:12px}
+</style>
+</head>
+<body>
+<div id="wrap">
+<div id="game"></div>
+<!-- WERBUNG RECHTS: spaeter den Anzeigencode hier einfuegen -->
+<div id="ad" class="ad">Platz fuer Werbung</div>
+<!-- WERBUNG UNTEN (Handy): spaeter den Anzeigencode hier einfuegen -->
+<div id="adm" class="ad">Platz fuer Werbung</div>
+</div>
+<div id="ov"><div id="box"></div></div>
+<script>
+var $=function(i){return document.getElementById(i)};
+var S=function(k,d){try{var v=localStorage.getItem('zs_'+k);return v===null?d:JSON.parse(v)}catch(e){return d}};
+var W=function(k,v){try{localStorage.setItem('zs_'+k,JSON.stringify(v))}catch(e){}};
+var lv=S('lv',1),pt=S('pt',0),who=S('who',''),names=S('names',[]);
+var scr='menu',typed='',comp=0,res='',show=0,pop='',msg='',tmp='';
+var L={C:'Löschen',OK:'Absenden'};
+var KEYS=['1','2','3','4','5','6','7','8','9','C','0','OK'];
+
+function mx(l){
+if(l<2)return 3;
+if(l<3)return 5;
+var z=5;
+for(var i=0;i<l-2;i++)z+=5+Math.floor(z/100);
+return z;
+}
+
+function start(){
+comp=1+Math.floor(Math.random()*mx(lv));
+typed='';res='';show=0;pop='';msg='';scr='lvl';
+}
+
+function send(){
+var n=parseInt(typed,10),m=mx(lv);
+if(!typed||n<1||n>m){msg='Bitte eine Zahl von 1 bis '+m;return}
+res=(n===comp)?'win':'lose';
+show=0;
+setTimeout(function(){show=1;draw()},800);
+setTimeout(function(){show=2;draw()},1800);
+setTimeout(function(){pop='res';draw()},2600);
+}
+
+function saveName(){
+var n=$('nm').value.replace(/[<>"&']/g,'').trim();
+tmp=n;
+var others=names.filter(function(x){return x!==who}).map(function(x){return x.toLowerCase()});
+if(!n){msg='Bitte einen Namen eingeben.'}
+else if(others.indexOf(n.toLowerCase())>-1){msg='Dieser Name ist schon vergeben.'}
+else{
+var i=names.indexOf(who);
+if(i>-1)names.splice(i,1);
+who=n;names.push(n);
+W('who',who);W('names',names);
+msg='Name gespeichert!';
+}
+}
+
+function act(a,v){
+if(a==='key'){
+if(res)return;
+msg='';
+if(v==='C')typed=typed.slice(0,-1);
+else if(v==='OK')send();
+else if(typed.length<4)typed+=v;
+}
+else if(a==='intro')pop='intro';
+else if(a==='start')start();
+else if(a==='set'){tmp=who;msg='';scr='set'}
+else if(a==='save')saveName();
+else if(a==='reset'){
+if(confirm('Spielstand wirklich zurücksetzen?')){lv=1;pt=0;W('lv',1);W('pt',0);msg='Zurückgesetzt.'}
+}
+else if(a==='menu'){scr='menu';pop='';res='';msg=''}
+else if(a==='after'){
+if(res==='win'){pt+=parseInt(typed,10);lv++;W('pt',pt);W('lv',lv);pop='';res='';scr='menu'}
+else start();
+}
+draw();
+}
+
+function draw(){
+var h='',b='';
+if(scr==='menu'){
+h='<div class="top"><div class="chip">Punkte: '+pt+'</div>'
++'<button class="g" data-a="set">Einstellungen</button></div>'
++'<div class="mid"><h1>Zahlenspiel</h1><p>'+(who?'Spieler: '+who:'')+'</p>'
++'<button class="big" data-a="intro">'+lv+' Level</button></div>';
+}else if(scr==='set'){
+h='<div class="top"><button class="g" data-a="menu">Zurück</button></div>'
++'<div class="mid"><h2>Einstellungen</h2>'
++'<input id="nm" maxlength="12" placeholder="Spielername" value="'+tmp+'">'
++'<button data-a="save">Speichern</button><p>'+msg+'</p>'
++'<button class="g" data-a="reset">Spiel zurücksetzen</button></div>';
+}else{
+h='<div class="top"><div class="chip">Punkte: '+pt+'</div></div>'
++'<h2>Level '+lv+'</h2><p>'+(msg||'Zahl von 1 bis '+mx(lv))+'</p>'
++'<div class="cards"><div><div class="card r">'+(show>0?comp:'?')+'</div>Computer</div>'
++'<div><div class="card b">'+(show>1?typed:'?')+'</div>Du</div></div>'
++'<div id="disp">'+(typed||'Deine Zahl')+'</div><div class="pad">'
++KEYS.map(function(k){return '<button class="k" data-a="key" data-v="'+k+'">'+(L[k]||k)+'</button>'}).join('')
++'</div>';
+}
+$('game').innerHTML=h;
+if(pop==='intro'){
+if(lv===1){
+b='<h2>So wird gespielt</h2><p>Tippe eine Zahl von 1 bis 3 ein.</p>'
++'<p>Der Computer denkt sich auch eine Zahl aus.</p>'
++'<p>Sind beide Zahlen gleich, hast du gewonnen!</p>'
++'<p>Als Punkte bekommst du deine eingetippte Zahl.</p>';
+}else{
+b='<h2>Level '+lv+'</h2><p>Wähle eine Zahl von 1 bis '+mx(lv)+'.</p>';
+}
+b+='<button data-a="start">Los geht&#39;s!</button>';
+}else if(pop==='res'){
+if(res==='win'){
+b='<h2>Gewonnen!</h2><p>+'+typed+' Punkte</p><button data-a="after">Weiter</button>';
+}else{
+b='<h2>Leider falsch</h2><p>Die Zahl war '+comp+'</p>'
++'<button data-a="after">Try again</button>'
++'<button class="g" data-a="menu">Zurück zum Hauptmenü</button>';
+}
+}
+$('box').innerHTML=b;
+$('ov').style.display=pop?'grid':'none';
+}
+
+document.addEventListener('click',function(e){
+var el=e.target.closest('[data-a]');
+if(el)act(el.getAttribute('data-a'),el.getAttribute('data-v'));
+});
+document.addEventListener('keydown',function(e){
+if(scr==='lvl'&&!res){
+if(e.key>='0'&&e.key<='9')act('key',e.key);
+else if(e.key==='Backspace')act('key','C');
+else if(e.key==='Enter')act('key','OK');
+}else if(scr==='set'&&e.key==='Enter')act('save');
+});
+draw();
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
